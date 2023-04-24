@@ -1,0 +1,185 @@
+
+import java.util.List;
+
+public class Parser {
+
+    private List<Token> tokens;
+    private int currentTokenIndex;
+
+    public Parser(List<Token> tokens) {
+        this.tokens = tokens;
+        this.currentTokenIndex = 0;
+    }
+
+    public ASTNode parse() throws ParsingException {
+        return program();
+    }
+
+    private ASTNode program() throws ParsingException {
+        List<ASTNode> statements = new ArrayList<>();
+        while (currentToken().getType() != TokenType.EOF) {
+            ASTNode statement = statement();
+            statements.add(statement);
+        }
+        return new ProgramNode(statements);
+    }
+
+    private ASTNode statement() throws ParsingException {
+        if (currentToken().getType() == TokenType.IF) {
+            return ifStatement();
+        } else if (currentToken().getType() == TokenType.WHILE) {
+            return whileStatement();
+        } else if (currentToken().getType() == TokenType.FOR) {
+            return forStatement();
+        } else if (currentToken().getType() == TokenType.TYPE) {
+            return declaration();
+        } else if (currentToken().getType() == TokenType.ID) {
+            Token nextToken = nextToken();
+            if (nextToken.getType() == TokenType.ASSIGN) {
+                return assignment();
+            } else if (nextToken.getType() == TokenType.LPAREN) {
+                return functionCall();
+            } else {
+                throw new ParsingException("Expected assignment or function call after identifier");
+            }
+        } else if (currentToken().getType() == TokenType.RETURN) {
+            return returnStatement();
+        } else {
+            throw new ParsingException("Expected statement");
+        }
+    }
+
+    private ASTNode ifStatement() throws ParsingException {
+        consume(TokenType.IF);
+        consume(TokenType.LPAREN);
+        ASTNode condition = expression();
+        consume(TokenType.RPAREN);
+        ASTNode trueBranch = block();
+        if (currentToken().getType() == TokenType.ELSE) {
+            consume(TokenType.ELSE);
+            ASTNode falseBranch = block();
+            return new IfElseNode(condition, trueBranch, falseBranch);
+        } else {
+            return new IfNode(condition, trueBranch);
+        }
+    }
+
+    private ASTNode whileStatement() throws ParsingException {
+        consume(TokenType.WHILE);
+        consume(TokenType.LPAREN);
+        ASTNode condition = expression();
+        consume(TokenType.RPAREN);
+        ASTNode body = block();
+        return new WhileNode(condition, body);
+    }
+
+    private ASTNode forStatement() throws ParsingException {
+        consume(TokenType.FOR);
+        consume(TokenType.LPAREN);
+        ASTNode initialization = null;
+        if (currentToken().getType() != TokenType.SEMICOLON) {
+            initialization = declaration();
+        }
+        consume(TokenType.SEMICOLON);
+        ASTNode condition = null;
+        if (currentToken().getType() != TokenType.SEMICOLON) {
+            condition = expression();
+        }
+        consume(TokenType.SEMICOLON);
+        ASTNode increment = null;
+        if (currentToken().getType() != TokenType.RPAREN) {
+            increment = expression();
+        }
+        consume(TokenType.RPAREN);
+        ASTNode body = block();
+        return new ForNode(initialization, condition, increment, body);
+    }
+
+    private ASTNode declaration() throws ParsingException {
+        Token typeToken = consume(TokenType.TYPE);
+        Token identifierToken = consume(TokenType.ID);
+        ASTNode initializer = null;
+        if (currentToken().getType() == TokenType.ASSIGN) {
+            consume(TokenType.ASSIGN);
+            initializer = expression();
+        }
+        consume(TokenType.SEMICOLON);
+        return new DeclarationNode(typeToken, identifierToken,
+       return statement;
+    }
+
+    /**
+     * Parse a function declaration
+     */
+    private FunctionDeclarationNode parseFunction() throws ParserException {
+        // Get the return type
+        TokenType returnType = currentToken.getType();
+        consumeToken(TokenType.TYPE);
+
+        // Get the function name
+        String functionName = currentToken.getValue();
+        consumeToken(TokenType.ID);
+
+        // Get the parameter list
+        List<ParameterDeclarationNode> parameters = new ArrayList<>();
+        consumeToken(TokenType.OPEN_PAREN);
+        if (currentToken.getType() != TokenType.CLOSE_PAREN) {
+            parameters.add(parseParameter());
+            while (currentToken.getType() == TokenType.COMMA) {
+                consumeToken(TokenType.COMMA);
+                parameters.add(parseParameter());
+            }
+        }
+        consumeToken(TokenType.CLOSE_PAREN);
+
+        // Get the function body
+        List<StatementNode> statements = new ArrayList<>();
+        consumeToken(TokenType.OPEN_BRACE);
+        while (currentToken.getType() != TokenType.CLOSE_BRACE) {
+            statements.add(parseStatement());
+        }
+        consumeToken(TokenType.CLOSE_BRACE);
+
+        return new FunctionDeclarationNode(returnType, functionName, parameters, statements);
+    }
+
+    /**
+     * Parse a parameter declaration
+     */
+    private ParameterDeclarationNode parseParameter() throws ParserException {
+        // Get the parameter type
+        TokenType parameterType = currentToken.getType();
+        consumeToken(TokenType.TYPE);
+
+        // Get the parameter name
+        String parameterName = currentToken.getValue();
+        consumeToken(TokenType.ID);
+
+        return new ParameterDeclarationNode(parameterType, parameterName);
+    }
+
+    /**
+     * Consume the current token if it matches the expected type, or throw a ParserException if not
+     */
+    private void consumeToken(TokenType expectedType) throws ParserException {
+        if (currentToken.getType() == expectedType) {
+            currentToken = lexer.getNextToken();
+        } else {
+            throw new ParserException("Expected token of type " + expectedType + ", found " + currentToken.getType());
+        }
+    }
+
+    /**
+     * Consume the current token if it matches any of the expected types, or throw a ParserException if not
+     */
+    private void consumeToken(TokenType... expectedTypes) throws ParserException {
+        for (TokenType expectedType : expectedTypes) {
+            if (currentToken.getType() == expectedType) {
+                currentToken = lexer.getNextToken();
+                return;
+            }
+        }
+        throw new ParserException("Expected one of " + Arrays.toString(expectedTypes) + ", found " + currentToken.getType());
+    }
+
+}
